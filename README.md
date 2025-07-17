@@ -1,73 +1,31 @@
-# Welcome to your Lovable project
+# UnQCreator - Autonomous AI Media House
 
-## Project info
+This project allows for the autonomous creation and management of content for YouTube and Instagram channels.
 
-**URL**: https://lovable.dev/projects/1eae9e46-d224-4484-8c73-fc21e968c309
+## Cloud Deployment Workflow
 
-## How can I edit this code?
+Follow these steps to deploy the full application in the cloud.
 
-There are several ways of editing your application.
+### Step 1: Deploy Frontend to Vercel
+1.  Fork this repository to your own GitHub account.
+2.  Go to [Vercel](https://vercel.com/) and create a new project, importing your forked repository.
+3.  Vercel will automatically deploy the frontend. Your live URL will be something like `https://unqcreator.vercel.app`.
 
-**Use Lovable**
+### Step 2: Launch the Backend on Google Colab
+1.  Click the button below to open the backend engine launcher in Google Colab.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/1eae9e46-d224-4484-8c73-fc21e968c309) and start prompting.
+    [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Sandeepgaddam5432/unqcreator/blob/main/UnQCreator_Engine.ipynb)
 
-Changes made via Lovable will be committed automatically to this repo.
+2.  In the Colab notebook, enter your Vercel URL (from Step 1) and your [Cloudflare Zero Trust Token](https://one.dash.cloudflare.com/) into the configuration cell.
+3.  Run all cells (`Runtime -> Run all`). The notebook will output logs. **Do not close the Colab tab.**
 
-**Use your preferred IDE**
+### Step 3: Connect Frontend to Backend
+1.  Look at the logs of the Cloudflare cell in your Colab notebook. Find a line that looks like `https://something-random.trycloudflare.com`. **This is your public API endpoint.**
+2.  Go back to your project on Vercel.
+3.  Navigate to `Settings -> Environment Variables`.
+4.  Create a new variable:
+    -   **Name:** `NEXT_PUBLIC_ENGINE_API_ENDPOINT`
+    -   **Value:** Paste the Cloudflare URL from the previous step.
+5.  Save and **re-deploy** your Vercel project for the changes to take effect.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/1eae9e46-d224-4484-8c73-fc21e968c309) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Your `unqcreator.vercel.app` site is now fully connected to the engine running on Colab.

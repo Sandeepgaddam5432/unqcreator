@@ -19,26 +19,20 @@ import {
   EyeOff
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSettings } from '../contexts/SettingsContext';
 
 const Settings = () => {
   const { user } = useAuth();
+  const { settings, updateSettings } = useSettings();
   const [showApiKeys, setShowApiKeys] = useState(false);
-  const [settings, setSettings] = useState({
-    aiCollaboration: true,
-    dynamicSponsorship: false,
-    comfyuiApiEndpoint: '',
-    googleAiApiKey: '',
-    openaiApiKey: '',
-    elevenLabsApiKey: '',
-  });
 
   const handleSettingChange = (key: string, value: boolean | string) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    updateSettings({ [key]: value });
   };
 
   const handleSave = () => {
-    console.log('Saving settings:', settings);
-    // In a real app, this would save to backend
+    console.log('Settings saved!');
+    // Show a toast or confirmation message here
   };
 
   return (

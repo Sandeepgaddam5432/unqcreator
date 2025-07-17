@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useSettings } from '@/contexts/SettingsContext';
+import { useToast } from '@/components/ui/use-toast';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -19,6 +21,9 @@ import {
 
 const Dashboard = () => {
   const [masterPrompt, setMasterPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { settings } = useSettings();
+  const { toast } = useToast();
 
   const stats = [
     { title: 'Total Views (24h)', value: '2.4M', change: '+12.5%', trend: 'up' },
@@ -64,9 +69,90 @@ const Dashboard = () => {
     { name: 'AIInsights', status: 'error', issue: 'Decreased viewership' },
   ];
 
-  const handleGenerateContent = () => {
-    console.log('Generating content with prompt:', masterPrompt);
-    // This would typically send the prompt to your backend AI system
+  const handleGenerateContent = async () => {
+    if (!masterPrompt.trim()) {
+      toast({
+        title: "Empty Prompt",
+        description: "Please enter a prompt to generate content.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!settings.comfyuiApiEndpoint) {
+      toast({
+        title: "API Endpoint Not Set",
+        description: "Please set the UnQCreator Engine API endpoint in Settings.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    
+    try {
+      // Basic prompt for a simple text-to-image generation
+      const workflow = {
+        "prompt": {
+          "3": {
+            "inputs": {
+              "seed": 12345,
+              "steps": 20,
+              "cfg": 7,
+              "sampler_name": "euler_a",
+              "scheduler": "normal",
+              "denoise": 1,
+              "model": "model1",
+              "positive": masterPrompt,
+              "negative": "blurry, bad quality, worst quality",
+              "latent_image": ["4", 0]
+            },
+            "class_type": "KSampler"
+          },
+          "4": {
+            "inputs": {
+              "width": 512,
+              "height": 512,
+              "batch_size": 1
+            },
+            "class_type": "EmptyLatentImage"
+          }
+        }
+      };
+
+      console.log(`Sending request to: ${settings.comfyuiApiEndpoint}/prompt`);
+      
+      const response = await fetch(`${settings.comfyuiApiEndpoint}/prompt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(workflow),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      toast({
+        title: "Content Generation Started",
+        description: `Prompt ID: ${data.prompt_id}`,
+        variant: "default",
+      });
+
+      console.log('Generation response:', data);
+    } catch (error) {
+      console.error('Error generating content:', error);
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -91,8 +177,9 @@ const Dashboard = () => {
               onClick={handleGenerateContent}
               size="lg"
               className="px-8 w-full sm:w-auto"
+              disabled={isGenerating}
             >
-              Generate
+              {isGenerating ? "Generating..." : "Generate"}
             </Button>
           </div>
         </CardContent>
