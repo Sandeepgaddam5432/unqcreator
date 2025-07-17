@@ -757,9 +757,14 @@ class PromptServer():
 
         # Serve our custom assets
         project_root = os.path.dirname(os.path.realpath(__file__))
-        self.app.add_routes([
-            web.static('/unqcreator_logo.svg', os.path.join(project_root, "unqcreator_logo.svg")),
-        ])
+        
+        # Define a handler function to serve the logo file
+        async def serve_logo_handler(request):
+            # The path is relative to the server.py file's location
+            return web.FileResponse(os.path.join(project_root, "unqcreator_logo.svg"))
+        
+        # Add a GET route that uses this handler
+        self.app.router.add_get('/unqcreator_logo.svg', serve_logo_handler)
         
         self.app.add_routes([
             web.static('/', self.web_root),
