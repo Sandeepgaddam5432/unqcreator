@@ -94,27 +94,27 @@ const Channels = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
         <div>
           <h1 className="text-2xl font-bold">Channel Management</h1>
           <p className="text-muted-foreground">Manage your connected YouTube and Instagram channels</p>
         </div>
-        <Button size="lg" className="flex items-center">
+        <Button size="lg" className="flex items-center w-full sm:w-auto">
           <Plus className="mr-2 h-5 w-5" />
           Add New Channel
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="glass-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Channels</p>
-                <p className="text-2xl font-bold">{channels.length}</p>
+                <p className="text-xl md:text-2xl font-bold">{channels.length}</p>
               </div>
               <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center">
                 <Users className="h-4 w-4 text-primary" />
@@ -128,7 +128,7 @@ const Channels = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Zero-Touch Enabled</p>
-                <p className="text-2xl font-bold">
+                <p className="text-xl md:text-2xl font-bold">
                   {channels.filter(c => c.isZeroTouchEnabled).length}
                 </p>
               </div>
@@ -144,7 +144,7 @@ const Channels = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Subscribers</p>
-                <p className="text-2xl font-bold">
+                <p className="text-xl md:text-2xl font-bold">
                   {channels.reduce((sum, channel) => sum + channel.subscribers, 0).toLocaleString()}
                 </p>
               </div>
@@ -160,7 +160,7 @@ const Channels = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Healthy Channels</p>
-                <p className="text-2xl font-bold">
+                <p className="text-xl md:text-2xl font-bold">
                   {channels.filter(c => c.status === 'healthy').length}
                 </p>
               </div>
@@ -173,7 +173,7 @@ const Channels = () => {
       </div>
 
       {/* Channels Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {channels.map((channel) => (
           <Card key={channel.id} className="glass-card">
             <CardContent className="p-6">

@@ -70,7 +70,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Master Control */}
       <Card className="glass-card">
         <CardHeader>
@@ -80,17 +80,17 @@ const Dashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex space-x-4">
+          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
             <Input
               placeholder="Instruct your AI... (e.g., 'Create a 90-second video about quantum computing')"
               value={masterPrompt}
               onChange={(e) => setMasterPrompt(e.target.value)}
-              className="flex-1 h-12 text-lg"
+              className="flex-1 h-12 text-base md:text-lg"
             />
             <Button 
               onClick={handleGenerateContent}
               size="lg"
-              className="px-8"
+              className="px-8 w-full sm:w-auto"
             >
               Generate
             </Button>
@@ -99,14 +99,14 @@ const Dashboard = () => {
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {stats.map((stat, index) => (
           <Card key={index} className="glass-card">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-xl md:text-2xl font-bold">{stat.value}</p>
                 </div>
                 <div className="flex items-center space-x-1">
                   {stat.trend === 'up' ? (
@@ -135,10 +135,10 @@ const Dashboard = () => {
           <CardContent className="space-y-4">
             {aiTasks.map((task) => (
               <div key={task.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                <div className="flex-1">
-                  <h4 className="font-medium">{task.title}</h4>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium truncate">{task.title}</h4>
                   <div className="flex items-center mt-2">
-                    <div className="w-32 bg-muted rounded-full h-2 mr-3">
+                    <div className="w-24 md:w-32 bg-muted rounded-full h-2 mr-3">
                       <div 
                         className="bg-primary h-2 rounded-full transition-all duration-300"
                         style={{ width: `${task.progress}%` }}
@@ -151,7 +151,7 @@ const Dashboard = () => {
                   task.status === 'generating' ? 'default' :
                   task.status === 'review' ? 'secondary' : 
                   'outline'
-                }>
+                } className="ml-2 shrink-0">
                   {task.status === 'generating' ? 'Generating' :
                    task.status === 'review' ? 'In Review' : 'Scheduled'}
                 </Badge>
@@ -171,14 +171,14 @@ const Dashboard = () => {
                 <img 
                   src={video.thumbnail} 
                   alt={video.title}
-                  className="w-16 h-9 object-cover rounded"
+                  className="w-12 h-7 md:w-16 md:h-9 object-cover rounded flex-shrink-0"
                 />
-                <div className="flex-1">
-                  <h4 className="font-medium text-sm">{video.title}</h4>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-sm truncate">{video.title}</h4>
                   <p className="text-xs text-muted-foreground">{video.channel}</p>
                   <p className="text-xs text-muted-foreground">{video.views} views</p>
                 </div>
-                <Badge className="bg-gradient-to-r from-orange-500 to-red-500">
+                <Badge className="bg-gradient-to-r from-orange-500 to-red-500 shrink-0 text-xs">
                   🔥 {video.viralityScore}/100
                 </Badge>
               </div>
@@ -193,23 +193,23 @@ const Dashboard = () => {
           <CardTitle>Channel Health</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {channelHealth.map((channel, index) => (
               <div key={index} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full ${
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
                     channel.status === 'healthy' ? 'status-online' :
                     channel.status === 'warning' ? 'status-warning' : 'status-error'
                   }`} />
-                  <div>
-                    <p className="font-medium text-sm">{channel.name}</p>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{channel.name}</p>
                     {channel.issue && (
-                      <p className="text-xs text-muted-foreground">{channel.issue}</p>
+                      <p className="text-xs text-muted-foreground truncate">{channel.issue}</p>
                     )}
                   </div>
                 </div>
                 {channel.status !== 'healthy' && (
-                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  <AlertCircle className="h-4 w-4 text-yellow-500 flex-shrink-0" />
                 )}
               </div>
             ))}

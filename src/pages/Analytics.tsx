@@ -73,13 +73,13 @@ const Analytics = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
         <h1 className="text-2xl font-bold">Analytics Dashboard</h1>
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
           <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Channel" />
             </SelectTrigger>
             <SelectContent>
@@ -91,7 +91,7 @@ const Analytics = () => {
           </Select>
 
           <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Platform" />
             </SelectTrigger>
             <SelectContent>
@@ -102,7 +102,7 @@ const Analytics = () => {
           </Select>
 
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-full sm:w-32">
               <SelectValue placeholder="Date Range" />
             </SelectTrigger>
             <SelectContent>
@@ -208,6 +208,7 @@ const Analytics = () => {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left p-2">Title</th>
+                    <th className="text-left p-2 hidden sm:table-cell">Channel</th>
                     <th className="text-left p-2">Views</th>
                     <th className="text-left p-2">Engagement</th>
                   </tr>
@@ -218,8 +219,11 @@ const Analytics = () => {
                       <td className="p-2">
                         <div>
                           <p className="font-medium">{video.title}</p>
-                          <p className="text-xs text-muted-foreground">{video.channel}</p>
+                          <p className="text-xs text-muted-foreground sm:hidden">{video.channel}</p>
                         </div>
+                      </td>
+                      <td className="p-2 hidden sm:table-cell">
+                        <p className="text-xs text-muted-foreground">{video.channel}</p>
                       </td>
                       <td className="p-2">{video.views.toLocaleString()}</td>
                       <td className="p-2">

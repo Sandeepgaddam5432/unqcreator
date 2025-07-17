@@ -134,8 +134,8 @@ const ContentStudio = () => {
   );
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 space-y-4 sm:space-y-0">
         <h1 className="text-2xl font-bold">Content Studio</h1>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
@@ -144,15 +144,17 @@ const ContentStudio = () => {
               checked={autoRemixEnabled}
               onCheckedChange={setAutoRemixEnabled}
             />
-            <Label htmlFor="auto-remix" className="flex items-center">
+            <Label htmlFor="auto-remix" className="flex items-center text-sm">
               <Shuffle className="h-4 w-4 mr-1" />
-              Automated Content Remixing
+              <span className="hidden sm:inline">Automated Content Remixing</span>
+              <span className="sm:hidden">Auto Remix</span>
             </Label>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 min-h-[600px]">
+      {/* Desktop Kanban Board */}
+      <div className="hidden lg:grid lg:grid-cols-4 xl:grid-cols-8 gap-4 min-h-[600px]">
         {columns.map((column) => (
           <div key={column.id} className="kanban-column">
             <div className="flex items-center mb-4">
@@ -170,6 +172,34 @@ const ContentStudio = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Mobile Horizontal Scrolling Kanban */}
+      <div className="lg:hidden">
+        <div className="overflow-x-auto pb-4">
+          <div className="flex space-x-4 min-w-max">
+            {columns.map((column) => (
+              <div key={column.id} className="flex-shrink-0 w-72 kanban-column">
+                <div className="flex items-center mb-4">
+                  <div className={`w-3 h-3 rounded-full ${column.color} mr-2`} />
+                  <h3 className="font-medium text-sm">{column.title}</h3>
+                  <Badge variant="outline" className="ml-2 text-xs">
+                    {getVideosByStatus(column.id).length}
+                  </Badge>
+                </div>
+                
+                <div className="space-y-3">
+                  {getVideosByStatus(column.id).map((video) => (
+                    <VideoCard key={video.id} video={video} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground mt-2 text-center">
+          Swipe horizontally to view all columns
+        </p>
       </div>
     </div>
   );
