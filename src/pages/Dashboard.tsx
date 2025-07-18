@@ -22,7 +22,7 @@ import {
 const Dashboard = () => {
   const [masterPrompt, setMasterPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const { settings } = useSettings();
+  const { settings, getApiEndpoint } = useSettings();
   const { toast } = useToast();
 
   const stats = [
@@ -79,10 +79,11 @@ const Dashboard = () => {
       return;
     }
 
-    if (!settings.comfyuiApiEndpoint) {
+    const apiEndpoint = getApiEndpoint();
+    if (!apiEndpoint) {
       toast({
         title: "API Endpoint Not Set",
-        description: "Please set the UnQCreator Engine API endpoint in Settings.",
+        description: "Please configure your UnQCreator Engine in the settings.",
         variant: "destructive",
       });
       return;
@@ -120,9 +121,9 @@ const Dashboard = () => {
         }
       };
 
-      console.log(`Sending request to: ${settings.comfyuiApiEndpoint}/prompt`);
+      console.log(`Sending request to: ${apiEndpoint}/prompt`);
       
-      const response = await fetch(`${settings.comfyuiApiEndpoint}/prompt`, {
+      const response = await fetch(`${apiEndpoint}/prompt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

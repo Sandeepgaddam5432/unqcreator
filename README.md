@@ -20,15 +20,14 @@ Follow these simple steps to deploy the full application in the cloud.
 3.  Wait for the setup to complete (5-10 minutes). The notebook will display a public URL when ready.
 4.  Copy this URL - you'll need it for the next step.
 
-### Step 3: Connect Frontend to Backend
-1.  Go back to your project on Vercel.
-2.  Navigate to `Settings -> Environment Variables`.
-3.  Create a new variable:
-    -   **Name:** `NEXT_PUBLIC_ENGINE_API_ENDPOINT`
-    -   **Value:** Paste the public URL from the Colab notebook.
-4.  Save and **re-deploy** your Vercel project for the changes to take effect.
+### Step 3: Connect Your Frontend to the Engine
+1.  Navigate to your deployed Vercel app (e.g., `https://unqcreator.vercel.app`).
+2.  Log in using the "Sign in with Google" button.
+3.  You'll be presented with an onboarding screen asking for your Engine URL.
+4.  Paste the URL from your Colab notebook and click "Connect".
+5.  The system will automatically validate the connection and take you to the dashboard when successful.
 
-That's it! Your `unqcreator.vercel.app` site is now fully connected to the engine running on Colab.
+That's it! Your UnQCreator application is now fully set up and ready to use.
 
 ## Restarting Your Engine
 
@@ -36,7 +35,15 @@ If your Colab session times out or you need to restart the engine:
 1. Simply open the Colab notebook again
 2. Click "Run" on the cell
 3. Copy the new public URL that gets generated
-4. Update your Vercel environment variable with this new URL
-5. Re-deploy your Vercel project
+4. If you're already logged in to your frontend, go to Settings → Integrations and click "Reset Connection"
+5. Enter the new URL when prompted
 
-No configuration, no accounts, no tokens - just click and go!
+## Advanced Configuration
+
+You can manage your engine connection at any time from the Settings page:
+- Check the connection status of your engine
+- Manually test the connection with the "Check Connection" button
+- Reset your connection if needed
+- View the last successful connection time
+
+The application securely stores your configuration in your browser's local storage, ensuring your settings persist between sessions.

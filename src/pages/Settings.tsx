@@ -16,18 +16,91 @@ import {
   DollarSign,
   Save,
   Eye,
-  EyeOff
+  EyeOff,
+  Globe,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
+import { useOnboarding } from '../contexts/OnboardingContext';
 
 const Settings = () => {
   const { user } = useAuth();
   const { settings, updateSettings } = useSettings();
+  const { 
+    apiEndpoint, 
+    connectionStatus, 
+    connectionError, 
+    lastHeartbeat, 
+    resetConfiguration,
+    checkConnection
+  } = useOnboarding();
   const [showApiKeys, setShowApiKeys] = useState(false);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
   const handleSettingChange = (key: string, value: boolean | string) => {
     updateSettings({ [key]: value });
+  };
+
+  const handleConnectionCheck = async () => {
+    setIsCheckingConnection(true);
+    try {
+      await checkConnection();
+    } finally {
+      setIsCheckingConnection(false);
+    }
+  };
+
+  const handleResetConnection = () => {
+    if (window.confirm('Are you sure you want to reset your API connection? You will need to reconfigure it.')) {
+      resetConfiguration();
+    }
+  };
+
+  const formatDate = (date: Date | null) => {
+    if (!date) return 'Never';
+    return new Intl.DateTimeFormat('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(date);
+  };
+
+  const getConnectionStatusDisplay = () => {
+    switch (connectionStatus) {
+      case 'connected':
+        return (
+          <div className="flex items-center text-green-500">
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            Connected
+          </div>
+        );
+      case 'validating':
+        return (
+          <div className="flex items-center text-blue-500">
+            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            Checking...
+          </div>
+        );
+      case 'error':
+      case 'timeout':
+      case 'cors_error':
+      case 'invalid_url':
+        return (
+          <div className="flex items-center text-red-500">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Error: {connectionError?.message || 'Unknown error'}
+          </div>
+        );
+      default:
+        return (
+          <div className="flex items-center text-amber-500">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Not configured
+          </div>
+        );
+    }
   };
 
   const handleSave = () => {
@@ -94,6 +167,66 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="integrations" className="space-y-6">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Globe className="mr-2 h-5 w-5" />
+                UnQCreator Engine Connection
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div>
+                    <Label>Connection Status</Label>
+                    <div className="mt-1">
+                      {getConnectionStatusDisplay()}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleConnectionCheck}
+                    disabled={isCheckingConnection || !apiEndpoint}
+                  >
+                    {isCheckingConnection ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Check Connection
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>API Endpoint</Label>
+                  <Input
+                    value={apiEndpoint || ''}
+                    readOnly
+                    className="bg-muted font-mono text-sm"
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    <p className="text-xs text-muted-foreground">
+                      Last heartbeat: {formatDate(lastHeartbeat)}
+                    </p>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleResetConnection}
+                    >
+                      Reset Connection
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="glass-card">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">

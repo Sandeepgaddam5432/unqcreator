@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useOnboarding } from './OnboardingContext';
 
 interface Settings {
-  comfyuiApiEndpoint: string;
   googleAiApiKey: string;
   openaiApiKey: string;
   elevenLabsApiKey: string;
@@ -12,21 +12,11 @@ interface Settings {
 interface SettingsContextType {
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => void;
+  getApiEndpoint: () => string | null;
 }
 
-const getDefaultApiEndpoint = (): string => {
-  if (typeof window !== 'undefined') {
-    // Check for environment variable from Vercel deployment
-    if (process.env.NEXT_PUBLIC_ENGINE_API_ENDPOINT) {
-      return process.env.NEXT_PUBLIC_ENGINE_API_ENDPOINT;
-    }
-  }
-  // Fallback for local development
-  return 'http://127.0.0.1:8188';
-};
-
+// Default settings without the API endpoint
 const defaultSettings: Settings = {
-  comfyuiApiEndpoint: getDefaultApiEndpoint(),
   googleAiApiKey: '',
   openaiApiKey: '',
   elevenLabsApiKey: '',
@@ -45,6 +35,7 @@ export const useSettings = () => {
 };
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { apiEndpoint } = useOnboarding();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
 
   useEffect(() => {
@@ -66,10 +57,16 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   };
 
+  // Get the API endpoint from the OnboardingContext
+  const getApiEndpoint = (): string | null => {
+    return apiEndpoint;
+  };
+
   return (
     <SettingsContext.Provider value={{
       settings,
       updateSettings,
+      getApiEndpoint,
     }}>
       {children}
     </SettingsContext.Provider>

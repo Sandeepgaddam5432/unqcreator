@@ -6,8 +6,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { OnboardingProvider, useOnboarding } from './contexts/OnboardingContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import LoginPage from './components/LoginPage';
+import OnboardingGate from './components/OnboardingGate';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import ContentStudio from './pages/ContentStudio';
@@ -18,9 +20,23 @@ import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
 
+// Combined protection for both authentication and onboarding
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  const { isConfigured } = useOnboarding();
+  
+  // First check authentication
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  // Then check if onboarding is complete
+  if (!isConfigured) {
+    return <OnboardingGate />;
+  }
+  
+  // If both checks pass, render the children
+  return <>{children}</>;
 };
 
 const AppRoutes = () => {
@@ -94,11 +110,13 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <SettingsProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </SettingsProvider>
+        <OnboardingProvider>
+          <SettingsProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </SettingsProvider>
+        </OnboardingProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
