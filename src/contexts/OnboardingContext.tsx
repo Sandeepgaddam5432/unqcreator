@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { ApiService, ApiError, ApiErrorType, getApiService, resetApiService } from '@/services/ApiService';
 
 // Connection states using a state machine approach
 export type ConnectionStatus = 
@@ -25,6 +26,7 @@ interface OnboardingContextType {
   validateConnection: (url: string) => Promise<boolean>;
   resetConfiguration: () => void;
   checkConnection: () => Promise<boolean>;
+  api: ApiService | null;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -43,6 +45,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [connectionError, setConnectionError] = useState<ConnectionError | null>(null);
   const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(null);
   const [isConfigured, setIsConfigured] = useState<boolean>(false);
+  const [api, setApi] = useState<ApiService | null>(null);
 
   // Load saved API endpoint on initial load
   useEffect(() => {
@@ -52,12 +55,20 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setIsConfigured(true);
       setConnectionStatus('connected'); // Assume connected initially, will verify with heartbeat
       
-      // Perform an initial connection check
-      validateConnection(storedEndpoint)
-        .catch(() => {
-          // Silent fail on initial load - we'll show appropriate UI later
-          console.warn('Initial connection check failed');
-        });
+      try {
+        // Initialize the API service with the stored endpoint
+        const apiService = getApiService(storedEndpoint);
+        setApi(apiService);
+        
+        // Perform an initial connection check
+        validateConnection(storedEndpoint)
+          .catch(() => {
+            // Silent fail on initial load - we'll show appropriate UI later
+            console.warn('Initial connection check failed');
+          });
+      } catch (error) {
+        console.error('Failed to initialize API service:', error);
+      }
     }
   }, []);
 
@@ -94,37 +105,11 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setConnectionStatus('validating');
     
     try {
-      // Set a timeout for the request
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      // Create a temporary API service for validation if we don't have one yet
+      const apiService = api || new ApiService(url);
       
-      // Try to connect to the API endpoint's system_stats endpoint
-      const response = await fetch(`${url}/system_stats`, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
-      }
-      
-      // Try to parse the response to verify it's a valid UnQCreator Engine
-      const data = await response.json();
-      
-      // Check for expected fields in the response that would indicate this is a valid engine
-      if (!data || typeof data !== 'object' || !('system' in data)) {
-        setConnectionStatus('error');
-        setConnectionError({
-          type: 'error',
-          message: 'The URL does not appear to be a valid UnQCreator Engine'
-        });
-        return false;
-      }
+      // Check system stats to validate connection
+      await apiService.checkSystemStats();
       
       // Connection successful
       setConnectionStatus('connected');
@@ -134,18 +119,29 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('Connection validation error:', error);
       
       // Handle specific error types
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        setConnectionStatus('timeout');
-        setConnectionError({
-          type: 'timeout',
-          message: 'Connection timed out. Please check the URL and try again.'
-        });
-      } else if (error instanceof TypeError && error.message.includes('CORS')) {
-        setConnectionStatus('cors_error');
-        setConnectionError({
-          type: 'cors_error',
-          message: 'CORS error. The engine may not be configured to accept requests from this origin.'
-        });
+      if (error instanceof ApiError) {
+        switch (error.type) {
+          case ApiErrorType.TIMEOUT:
+            setConnectionStatus('timeout');
+            setConnectionError({
+              type: 'timeout',
+              message: 'Connection timed out. Please check the URL and try again.'
+            });
+            break;
+          case ApiErrorType.CORS:
+            setConnectionStatus('cors_error');
+            setConnectionError({
+              type: 'cors_error',
+              message: 'CORS error. The engine may not be configured to accept requests from this origin.'
+            });
+            break;
+          default:
+            setConnectionStatus('error');
+            setConnectionError({
+              type: 'error',
+              message: error.message || 'Unknown error occurred'
+            });
+        }
       } else {
         setConnectionStatus('error');
         setConnectionError({
@@ -167,6 +163,16 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       localStorage.setItem('unqcreator_api_endpoint', url);
       setApiEndpointState(url);
       setIsConfigured(true);
+      
+      // Initialize or update the API service
+      try {
+        const apiService = getApiService(url);
+        setApi(apiService);
+      } catch (error) {
+        console.error('Failed to initialize API service:', error);
+        return false;
+      }
+      
       return true;
     }
     
@@ -181,6 +187,8 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setConnectionStatus('unconfigured');
     setConnectionError(null);
     setLastHeartbeat(null);
+    resetApiService();
+    setApi(null);
   };
 
   // Check the current connection (for heartbeats)
@@ -200,7 +208,8 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setApiEndpoint,
       validateConnection,
       resetConfiguration,
-      checkConnection
+      checkConnection,
+      api
     }}>
       {children}
     </OnboardingContext.Provider>

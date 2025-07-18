@@ -18,11 +18,14 @@ import {
   Calendar,
   AlertCircle
 } from 'lucide-react';
+import { useOnboarding } from '@/contexts/OnboardingContext';
+import { ApiError } from '@/services/ApiService';
 
 const Dashboard = () => {
   const [masterPrompt, setMasterPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const { settings, getApiEndpoint } = useSettings();
+  const { settings } = useSettings();
+  const { api } = useOnboarding();
   const { toast } = useToast();
 
   const stats = [
@@ -79,10 +82,9 @@ const Dashboard = () => {
       return;
     }
 
-    const apiEndpoint = getApiEndpoint();
-    if (!apiEndpoint) {
+    if (!api) {
       toast({
-        title: "API Endpoint Not Set",
+        title: "API Not Configured",
         description: "Please configure your UnQCreator Engine in the settings.",
         variant: "destructive",
       });
@@ -121,34 +123,31 @@ const Dashboard = () => {
         }
       };
 
-      console.log(`Sending request to: ${apiEndpoint}/prompt`);
-      
-      const response = await fetch(`${apiEndpoint}/prompt`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(workflow),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      // Use our API service to submit the prompt
+      const response = await api.submitPrompt(workflow);
       
       toast({
         title: "Content Generation Started",
-        description: `Prompt ID: ${data.prompt_id}`,
+        description: `Prompt ID: ${response.prompt_id}`,
         variant: "default",
       });
 
-      console.log('Generation response:', data);
+      console.log('Generation response:', response);
     } catch (error) {
       console.error('Error generating content:', error);
+      
+      // Use our improved error handling
+      let errorMessage = "Unknown error occurred";
+      
+      if (error instanceof ApiError) {
+        errorMessage = error.message;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Generation Failed",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

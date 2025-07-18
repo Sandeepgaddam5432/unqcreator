@@ -20,11 +20,181 @@ import {
   Globe,
   RefreshCw,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Volume2,
+  Play
 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
+import { AVAILABLE_VOICES, getTtsService } from '@/services/TtsService';
+import { toast } from '@/components/ui/use-toast';
+
+const TtsSettings = () => {
+  const { settings, updateSettings } = useSettings();
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [testText, setTestText] = useState("This is a test of the text-to-speech system.");
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const handlePlayTest = async () => {
+    if (!settings.googleTtsApiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please enter your Google TTS API key first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsPlaying(true);
+    try {
+      const ttsService = getTtsService(settings.googleTtsApiKey);
+      await ttsService.synthesizeAndPlay(testText, {
+        voice: settings.ttsVoice,
+        speed: settings.ttsSpeed,
+        pitch: settings.ttsPitch
+      });
+    } catch (error) {
+      console.error('TTS test error:', error);
+      toast({
+        title: "TTS Test Failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPlaying(false);
+    }
+  };
+
+  return (
+    <Card className="glass-card">
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <Volume2 className="mr-2 h-5 w-5" />
+          Text-to-Speech Configuration
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="googleTtsApiKey">Google TTS API Key</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowApiKey(!showApiKey)}
+              >
+                {showApiKey ? (
+                  <>
+                    <EyeOff className="mr-2 h-4 w-4" />
+                    Hide
+                  </>
+                ) : (
+                  <>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Show
+                  </>
+                )}
+              </Button>
+            </div>
+            <Input
+              id="googleTtsApiKey"
+              type={showApiKey ? 'text' : 'password'}
+              value={settings.googleTtsApiKey}
+              onChange={(e) => updateSettings({ googleTtsApiKey: e.target.value })}
+              placeholder="Enter your Google TTS API key"
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              Used for high-quality text-to-speech in video generation
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ttsVoice">Voice</Label>
+            <Select
+              value={settings.ttsVoice}
+              onValueChange={(value) => updateSettings({ ttsVoice: value })}
+            >
+              <SelectTrigger id="ttsVoice">
+                <SelectValue placeholder="Select a voice" />
+              </SelectTrigger>
+              <SelectContent>
+                {AVAILABLE_VOICES.map((voice) => (
+                  <SelectItem key={voice.id} value={voice.id}>
+                    {voice.name} ({voice.language}) - {voice.type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label htmlFor="ttsSpeed">Speed: {settings.ttsSpeed.toFixed(1)}x</Label>
+            </div>
+            <Slider
+              id="ttsSpeed"
+              min={0.5}
+              max={2.0}
+              step={0.1}
+              value={[settings.ttsSpeed]}
+              onValueChange={(value) => updateSettings({ ttsSpeed: value[0] })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label htmlFor="ttsPitch">Pitch: {settings.ttsPitch}</Label>
+            </div>
+            <Slider
+              id="ttsPitch"
+              min={-10}
+              max={10}
+              step={1}
+              value={[settings.ttsPitch]}
+              onValueChange={(value) => updateSettings({ ttsPitch: value[0] })}
+            />
+          </div>
+
+          <div className="pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="testTts">Test Text-to-Speech</Label>
+              <div className="flex space-x-2">
+                <Input
+                  id="testTts"
+                  value={testText}
+                  onChange={(e) => setTestText(e.target.value)}
+                  placeholder="Enter text to test TTS"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={handlePlayTest}
+                  disabled={isPlaying || !settings.googleTtsApiKey}
+                >
+                  {isPlaying ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-lg">
+          <p className="text-sm text-yellow-600 dark:text-yellow-400">
+            <strong>Note:</strong> You'll need a Google Cloud Platform API key with the Text-to-Speech API enabled.
+            Visit the <a href="https://console.cloud.google.com/apis/library/texttospeech.googleapis.com" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a> to set this up.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 const Settings = () => {
   const { user } = useAuth();
@@ -226,6 +396,8 @@ const Settings = () => {
               </div>
             </CardContent>
           </Card>
+
+          <TtsSettings />
 
           <Card className="glass-card">
             <CardHeader>
