@@ -3,7 +3,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  avatar: string;
+  image: string; // Renamed from avatar to match NextAuth user properties
+  colabUrl?: string; // Added to store the Colab URL
 }
 
 export interface Channel {

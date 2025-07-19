@@ -3,20 +3,14 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, Sparkles } from 'lucide-react';
+import { LogIn, Sparkles, Loader2 } from 'lucide-react';
 
 const LoginPage = () => {
-  const { login } = useAuth();
+  const { login, isLoading } = useAuth();
 
   const handleGoogleLogin = () => {
-    // Simulate Google login
-    const mockUser = {
-      id: '1',
-      name: 'Sandeep Gaddam',
-      email: 'sandeep@example.com',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face'
-    };
-    login(mockUser);
+    // Use the login method from AuthContext which now calls signIn from next-auth
+    login();
   };
 
   return (
@@ -46,8 +40,13 @@ const LoginPage = () => {
               onClick={handleGoogleLogin}
               className="w-full h-12 text-lg"
               size="lg"
+              disabled={isLoading}
             >
-              <LogIn className="mr-2 h-5 w-5" />
+              {isLoading ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <LogIn className="mr-2 h-5 w-5" />
+              )}
               Sign in with Google
             </Button>
             

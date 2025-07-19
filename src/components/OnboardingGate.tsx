@@ -5,30 +5,47 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useOnboarding, ConnectionStatus } from '@/contexts/OnboardingContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Sparkles, AlertCircle, CheckCircle2, Loader2, Globe, ArrowRight } from 'lucide-react';
 
 const OnboardingGate: React.FC = () => {
-  const { connectionStatus, connectionError, setApiEndpoint } = useOnboarding();
+  const { connectionStatus, connectionError, validateConnection } = useOnboarding();
+  const { updateColabUrl } = useAuth();
   const [url, setUrl] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleConnect = async () => {
     if (!url) return;
     
-    setIsSubmitting(true);
+    setStatus('submitting');
     try {
-      await setApiEndpoint(url);
-      // The connection status will be updated in the context
+      // First validate the connection
+      const isValid = await validateConnection(url);
+      
+      if (isValid) {
+        // If connection is valid, update the user's Colab URL
+        const success = await updateColabUrl(url);
+        if (success) {
+          setStatus('success');
+        } else {
+          setStatus('error');
+          setErrorMessage('Failed to update Colab URL. Please try again.');
+        }
+      } else {
+        setStatus('error');
+        setErrorMessage('Failed to connect to the engine. Please check the URL and try again.');
+      }
     } catch (error) {
       console.error('Error during connection setup:', error);
-    } finally {
-      setIsSubmitting(false);
+      setStatus('error');
+      setErrorMessage('An unexpected error occurred. Please try again.');
     }
   };
 
   // Helper to render different status messages
   const renderStatusMessage = () => {
-    if (connectionStatus === 'validating') {
+    if (status === 'submitting' || connectionStatus === 'validating') {
       return (
         <Alert className="bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400">
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -40,7 +57,7 @@ const OnboardingGate: React.FC = () => {
       );
     }
 
-    if (connectionStatus === 'connected') {
+    if (status === 'success' || connectionStatus === 'connected') {
       return (
         <Alert className="bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400">
           <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -52,13 +69,13 @@ const OnboardingGate: React.FC = () => {
       );
     }
 
-    if (connectionError) {
+    if (status === 'error' || connectionError) {
       return (
         <Alert className="bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400">
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertTitle>Connection Error</AlertTitle>
           <AlertDescription>
-            {connectionError.message}
+            {errorMessage || (connectionError ? connectionError.message : 'Failed to connect to the engine.')}
           </AlertDescription>
         </Alert>
       );
@@ -92,6 +109,7 @@ const OnboardingGate: React.FC = () => {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 className="flex-1"
+                disabled={status === 'submitting' || connectionStatus === 'validating'}
               />
             </div>
             <p className="text-sm text-muted-foreground">
@@ -115,9 +133,9 @@ const OnboardingGate: React.FC = () => {
           <Button 
             className="w-full"
             onClick={handleConnect}
-            disabled={!url || isSubmitting || connectionStatus === 'validating'}
+            disabled={!url || status === 'submitting' || connectionStatus === 'validating'}
           >
-            {isSubmitting || connectionStatus === 'validating' ? (
+            {status === 'submitting' || connectionStatus === 'validating' ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Connecting...

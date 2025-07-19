@@ -5,8 +5,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { SessionProvider } from "next-auth/react";
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { OnboardingProvider, useOnboarding } from './contexts/OnboardingContext';
+import { OnboardingProvider } from './contexts/OnboardingContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import LoginPage from './components/LoginPage';
 import OnboardingGate from './components/OnboardingGate';
@@ -22,16 +23,20 @@ const queryClient = new QueryClient();
 
 // Combined protection for both authentication and onboarding
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-  const { isConfigured } = useOnboarding();
+  const { isAuthenticated, user, isLoading } = useAuth();
+  
+  // Show loading state if session is still loading
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
   
   // First check authentication
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
   }
   
-  // Then check if onboarding is complete
-  if (!isConfigured) {
+  // Then check if Colab URL is configured
+  if (!user?.colabUrl) {
     return <OnboardingGate />;
   }
   
@@ -105,21 +110,23 @@ const AppRoutes = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <OnboardingProvider>
-          <SettingsProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </SettingsProvider>
-        </OnboardingProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <SessionProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <OnboardingProvider>
+            <SettingsProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </SettingsProvider>
+          </OnboardingProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </SessionProvider>
 );
 
 export default App;

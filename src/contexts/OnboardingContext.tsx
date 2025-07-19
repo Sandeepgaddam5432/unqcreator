@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ApiService, ApiError, ApiErrorType, getApiService, resetApiService } from '@/services/ApiService';
+import { useAuth } from './AuthContext';
 
 // Connection states using a state machine approach
 export type ConnectionStatus = 
@@ -22,7 +23,6 @@ interface OnboardingContextType {
   apiEndpoint: string | null;
   connectionError: ConnectionError | null;
   lastHeartbeat: Date | null;
-  setApiEndpoint: (url: string) => Promise<boolean>;
   validateConnection: (url: string) => Promise<boolean>;
   resetConfiguration: () => void;
   checkConnection: () => Promise<boolean>;
@@ -40,6 +40,7 @@ export const useOnboarding = () => {
 };
 
 export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, updateColabUrl } = useAuth();
   const [apiEndpoint, setApiEndpointState] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('unconfigured');
   const [connectionError, setConnectionError] = useState<ConnectionError | null>(null);
@@ -47,21 +48,20 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isConfigured, setIsConfigured] = useState<boolean>(false);
   const [api, setApi] = useState<ApiService | null>(null);
 
-  // Load saved API endpoint on initial load
+  // Load API endpoint from user data
   useEffect(() => {
-    const storedEndpoint = localStorage.getItem('unqcreator_api_endpoint');
-    if (storedEndpoint) {
-      setApiEndpointState(storedEndpoint);
+    if (user?.colabUrl) {
+      setApiEndpointState(user.colabUrl);
       setIsConfigured(true);
       setConnectionStatus('connected'); // Assume connected initially, will verify with heartbeat
       
       try {
         // Initialize the API service with the stored endpoint
-        const apiService = getApiService(storedEndpoint);
+        const apiService = getApiService(user.colabUrl);
         setApi(apiService);
         
         // Perform an initial connection check
-        validateConnection(storedEndpoint)
+        validateConnection(user.colabUrl)
           .catch(() => {
             // Silent fail on initial load - we'll show appropriate UI later
             console.warn('Initial connection check failed');
@@ -69,8 +69,12 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       } catch (error) {
         console.error('Failed to initialize API service:', error);
       }
+    } else {
+      setApiEndpointState(null);
+      setIsConfigured(false);
+      setConnectionStatus('unconfigured');
     }
-  }, []);
+  }, [user]);
 
   // Set up a periodic heartbeat check when connected
   useEffect(() => {
@@ -154,34 +158,8 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  // Set a new API endpoint and validate the connection
-  const setApiEndpoint = async (url: string): Promise<boolean> => {
-    const isValid = await validateConnection(url);
-    
-    if (isValid) {
-      // Save to localStorage
-      localStorage.setItem('unqcreator_api_endpoint', url);
-      setApiEndpointState(url);
-      setIsConfigured(true);
-      
-      // Initialize or update the API service
-      try {
-        const apiService = getApiService(url);
-        setApi(apiService);
-      } catch (error) {
-        console.error('Failed to initialize API service:', error);
-        return false;
-      }
-      
-      return true;
-    }
-    
-    return false;
-  };
-
   // Reset the configuration
   const resetConfiguration = () => {
-    localStorage.removeItem('unqcreator_api_endpoint');
     setApiEndpointState(null);
     setIsConfigured(false);
     setConnectionStatus('unconfigured');
@@ -189,6 +167,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setLastHeartbeat(null);
     resetApiService();
     setApi(null);
+    // We don't need to update the user's colabUrl here as that will be handled by the AuthContext
   };
 
   // Check the current connection (for heartbeats)
@@ -205,7 +184,6 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       apiEndpoint,
       connectionError,
       lastHeartbeat,
-      setApiEndpoint,
       validateConnection,
       resetConfiguration,
       checkConnection,
