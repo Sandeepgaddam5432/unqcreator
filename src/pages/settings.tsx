@@ -1,5 +1,5 @@
 import React from 'react';
-import { withAuth } from './_app';
+import { withAuth } from '@/lib/withAuth';
 
 function SettingsPage() {
   return (
