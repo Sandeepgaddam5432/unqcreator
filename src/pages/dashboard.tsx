@@ -1,9 +1,12 @@
 import React from 'react';
 import DashboardComponent from '@/components/Dashboard';
-import { withAuth } from './_app';
+import Layout from '@/components/Layout';
 
 function DashboardPage() {
-  return <DashboardComponent />;
+  return (
+    <DashboardComponent />
+  );
 }
 
-export default withAuth(DashboardPage); 
+// The _app.tsx file handles auth protection already
+export default DashboardPage; 

@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
 import { useOnboarding, ConnectionStatus } from '@/contexts/OnboardingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sparkles, AlertCircle, CheckCircle2, Loader2, Globe, ArrowRight } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 const OnboardingGate: React.FC = () => {
+  const router = useRouter();
+  const { toast } = useToast();
   const { connectionStatus, connectionError, validateConnection } = useOnboarding();
   const { updateColabUrl } = useAuth();
+  const { update: updateSession } = useSession();
+  
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -28,18 +35,57 @@ const OnboardingGate: React.FC = () => {
         const success = await updateColabUrl(url);
         if (success) {
           setStatus('success');
+          
+          // Show success message
+          toast({
+            title: "Connection successful!",
+            description: "You are now connected to UnQCreator Engine",
+            variant: "success",
+          });
+          
+          try {
+            // Update the session to reflect the new colab_url
+            await updateSession();
+            
+            // Redirect to dashboard after a short delay to show success message
+            setTimeout(() => {
+              router.push('/dashboard');
+            }, 1500);
+          } catch (error) {
+            console.error("Error updating session:", error);
+            setStatus('error');
+            setErrorMessage('Your connection was saved, but we had trouble updating your session. Please try refreshing the page.');
+          }
         } else {
           setStatus('error');
           setErrorMessage('Failed to update Colab URL. Please try again.');
+          
+          toast({
+            title: "Connection failed",
+            description: "Could not save your engine URL. Please try again.",
+            variant: "destructive",
+          });
         }
       } else {
         setStatus('error');
         setErrorMessage('Failed to connect to the engine. Please check the URL and try again.');
+        
+        toast({
+          title: "Connection failed",
+          description: "Could not connect to the engine. Please check the URL.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error during connection setup:', error);
       setStatus('error');
       setErrorMessage('An unexpected error occurred. Please try again.');
+      
+      toast({
+        title: "Connection error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -63,7 +109,7 @@ const OnboardingGate: React.FC = () => {
           <CheckCircle2 className="h-4 w-4 mr-2" />
           <AlertTitle>Connection Successful!</AlertTitle>
           <AlertDescription>
-            Successfully connected to the UnQCreator Engine.
+            Successfully connected to the UnQCreator Engine. Redirecting to dashboard...
           </AlertDescription>
         </Alert>
       );
@@ -133,12 +179,17 @@ const OnboardingGate: React.FC = () => {
           <Button 
             className="w-full"
             onClick={handleConnect}
-            disabled={!url || status === 'submitting' || connectionStatus === 'validating'}
+            disabled={!url || status === 'submitting' || connectionStatus === 'validating' || status === 'success'}
           >
             {status === 'submitting' || connectionStatus === 'validating' ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Connecting...
+              </>
+            ) : status === 'success' ? (
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Connected! Redirecting...
               </>
             ) : (
               <>

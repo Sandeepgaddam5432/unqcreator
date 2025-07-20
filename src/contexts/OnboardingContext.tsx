@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ApiService, ApiError, ApiErrorType, getApiService, resetApiService } from '@/services/ApiService';
 import { useAuth } from './AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 // Connection states using a state machine approach
 export type ConnectionStatus = 
@@ -40,31 +41,33 @@ export const useOnboarding = () => {
 };
 
 export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, updateColabUrl } = useAuth();
+  const { sessionData } = useAuth();
+  const { data: session } = sessionData;
   const [apiEndpoint, setApiEndpointState] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('unconfigured');
   const [connectionError, setConnectionError] = useState<ConnectionError | null>(null);
   const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(null);
   const [isConfigured, setIsConfigured] = useState<boolean>(false);
   const [api, setApi] = useState<ApiService | null>(null);
+  const { toast } = useToast();
 
-  // Load API endpoint from user data
+  // Load API endpoint from session data
   useEffect(() => {
-    if (user?.colabUrl) {
-      setApiEndpointState(user.colabUrl);
+    if (session?.user?.colab_url) {
+      setApiEndpointState(session.user.colab_url);
       setIsConfigured(true);
       setConnectionStatus('connected'); // Assume connected initially, will verify with heartbeat
       
       try {
         // Initialize the API service with the stored endpoint
-        const apiService = getApiService(user.colabUrl);
+        const apiService = getApiService(session.user.colab_url);
         setApi(apiService);
         
         // Perform an initial connection check
-        validateConnection(user.colabUrl)
-          .catch(() => {
+        validateConnection(session.user.colab_url)
+          .catch((error) => {
             // Silent fail on initial load - we'll show appropriate UI later
-            console.warn('Initial connection check failed');
+            console.warn('Initial connection check failed', error);
           });
       } catch (error) {
         console.error('Failed to initialize API service:', error);
@@ -74,14 +77,15 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setIsConfigured(false);
       setConnectionStatus('unconfigured');
     }
-  }, [user]);
+  }, [session?.user?.colab_url]);
 
   // Set up a periodic heartbeat check when connected
   useEffect(() => {
     if (connectionStatus === 'connected' && apiEndpoint) {
       const heartbeatInterval = setInterval(() => {
-        checkConnection().catch(() => {
+        checkConnection().catch((error) => {
           // Silent fail during heartbeat - UI will update based on connectionStatus
+          console.warn('Heartbeat check failed', error);
         });
       }, 60000); // Check every minute
       
@@ -103,6 +107,11 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         type: 'invalid_url',
         message: 'Please enter a valid URL (e.g., https://example.com)'
       });
+      toast({
+        title: "Invalid URL",
+        description: "The URL format is not valid. Please check and try again.",
+        variant: "destructive",
+      });
       return false;
     }
     
@@ -118,6 +127,11 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Connection successful
       setConnectionStatus('connected');
       setLastHeartbeat(new Date());
+      toast({
+        title: "Connection Successful",
+        description: "Successfully connected to the UnQCreator Engine.",
+        variant: "success",
+      });
       return true;
     } catch (error) {
       console.error('Connection validation error:', error);
@@ -131,12 +145,22 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               type: 'timeout',
               message: 'Connection timed out. Please check the URL and try again.'
             });
+            toast({
+              title: "Connection Timeout",
+              description: "The engine is not responding. Please check the URL and try again.",
+              variant: "destructive",
+            });
             break;
           case ApiErrorType.CORS:
             setConnectionStatus('cors_error');
             setConnectionError({
               type: 'cors_error',
               message: 'CORS error. The engine may not be configured to accept requests from this origin.'
+            });
+            toast({
+              title: "CORS Error",
+              description: "The engine is not configured to accept requests from this origin.",
+              variant: "destructive",
             });
             break;
           default:
@@ -145,12 +169,22 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               type: 'error',
               message: error.message || 'Unknown error occurred'
             });
+            toast({
+              title: "Connection Error",
+              description: error.message || "Unknown error occurred",
+              variant: "destructive",
+            });
         }
       } else {
         setConnectionStatus('error');
         setConnectionError({
           type: 'error',
           message: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
+        toast({
+          title: "Connection Error",
+          description: error instanceof Error ? error.message : "Unknown error occurred",
+          variant: "destructive",
         });
       }
       
@@ -167,7 +201,6 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setLastHeartbeat(null);
     resetApiService();
     setApi(null);
-    // We don't need to update the user's colabUrl here as that will be handled by the AuthContext
   };
 
   // Check the current connection (for heartbeats)

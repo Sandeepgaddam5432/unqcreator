@@ -49,12 +49,22 @@ export default NextAuth({
     },
     async session({ session, token }) {
       if (session.user && token.sub) {
-        // Get user data from Google Sheet database
         try {
+          // Get complete user data from Google Sheet database
           const userData = await getUserData(session.user.email!);
+          
           if (userData) {
-            // Add the colab URL to the session
-            session.user.colab_url = userData.colab_url;
+            // Add all user data to the session for global access
+            session.user.colab_url = userData.colab_url || '';
+            
+            // Add secondary accounts information if available
+            if (userData.secondary_accounts && userData.secondary_accounts.length > 0) {
+              session.user.secondary_accounts = userData.secondary_accounts.map(account => ({
+                email: account.email
+              }));
+            } else {
+              session.user.secondary_accounts = [];
+            }
           }
         } catch (error) {
           console.error('Error getting user data for session:', error);
@@ -68,8 +78,8 @@ export default NextAuth({
     }
   },
   pages: {
-    signIn: '/login',
-    error: '/login', // Error code passed in query string as ?error=
+    signIn: '/',
+    error: '/', // Error code passed in query string as ?error=
   },
   session: {
     strategy: 'jwt',

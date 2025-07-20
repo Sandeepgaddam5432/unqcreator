@@ -1,7 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useSession, signIn, signOut, SessionContextValue } from 'next-auth/react';
 import { User } from '../types';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -13,6 +14,8 @@ interface AuthContextType {
   selectedAccount: string | null;
   setSelectedAccount: (email: string | null) => void;
   secondaryAccounts: { email: string }[];
+  refreshSession: () => Promise<void>;
+  sessionData: SessionContextValue;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,15 +29,17 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { data: session, status } = useSession();
+  const sessionData = useSession();
+  const { data: session, status, update } = sessionData;
   const [user, setUser] = useState<User | null>(null);
   const [secondaryAccounts, setSecondaryAccounts] = useState<{ email: string }[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const { toast } = useToast();
   const isLoading = status === 'loading';
 
   // Load user data from session
   useEffect(() => {
-    if (session && session.user) {
+    if (session?.user) {
       const userData: User = {
         id: session.user.email || '',
         name: session.user.name || '',
@@ -44,13 +49,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       
       setUser(userData);
+      
       // If there's a colab_url in the session, select the main account by default
       if (session.user.email) {
         setSelectedAccount(session.user.email);
       }
       
-      // Fetch secondary accounts
-      fetchSecondaryAccounts();
+      // Get secondary accounts from session if available
+      if (session.user.secondary_accounts && session.user.secondary_accounts.length > 0) {
+        setSecondaryAccounts(session.user.secondary_accounts);
+      } else {
+        // Fallback: fetch secondary accounts if not in session
+        fetchSecondaryAccounts();
+      }
     } else {
       setUser(null);
       setSelectedAccount(null);
@@ -59,6 +70,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [session]);
 
   const fetchSecondaryAccounts = async () => {
+    if (!session?.user?.email) return;
+    
     try {
       const response = await fetch('/api/auth/get-accounts');
       const data = await response.json();
@@ -67,15 +80,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Error fetching secondary accounts:', error);
+      toast({
+        title: "Error",
+        description: "Could not fetch your connected accounts",
+        variant: "destructive",
+      });
     }
   };
 
   const login = () => {
-    signIn('google');
+    signIn('google', { callbackUrl: '/' });
   };
 
   const logout = () => {
-    signOut();
+    signOut({ callbackUrl: '/' });
+  };
+
+  const refreshSession = async () => {
+    await update();
   };
 
   const updateColabUrl = async (url: string): Promise<boolean> => {
@@ -92,17 +114,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Failed to update Colab URL');
       }
       
-      // Update the local user state with the new URL
-      if (user) {
-        setUser({
-          ...user,
-          colabUrl: url
-        });
-      }
+      // Force refresh the session to get updated data
+      await update();
       
       return true;
     } catch (error) {
       console.error('Error updating Colab URL:', error);
+      toast({
+        title: "Error",
+        description: "Could not update your engine URL",
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -112,12 +134,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user,
       login,
       logout,
-      isAuthenticated: !!user,
+      isAuthenticated: status === 'authenticated',
       isLoading,
       updateColabUrl,
       selectedAccount,
       setSelectedAccount,
-      secondaryAccounts
+      secondaryAccounts,
+      refreshSession,
+      sessionData
     }}>
       {children}
     </AuthContext.Provider>

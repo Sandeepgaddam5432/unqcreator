@@ -2,15 +2,28 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { useAuth } from '../contexts/AuthContext';
+import { signIn } from 'next-auth/react';
 import { LogIn, Sparkles, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const LoginPage = () => {
-  const { login, isLoading } = useAuth();
+  const [isLoading, setIsLoading] = React.useState(false);
+  const { toast } = useToast();
 
-  const handleGoogleLogin = () => {
-    // Use the login method from AuthContext which now calls signIn from next-auth
-    login();
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      // Call Next-auth signIn directly to avoid any potential issues with context
+      await signIn('google', { callbackUrl: '/' });
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: "Login Failed",
+        description: "There was an error signing in with Google. Please try again.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+    }
   };
 
   return (
