@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '../contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
@@ -90,7 +90,7 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuToggle }) => {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center space-x-2 md:space-x-3 h-10">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.avatar} alt={user?.name} />
+                <AvatarImage src={user?.image} alt={user?.name} />
                 <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="hidden md:block text-left">
@@ -103,8 +103,8 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuToggle }) => {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/channels" className="flex items-center">
+            <DropdownMenuItem>
+              <Link href="/channels" className="flex items-center w-full">
                 <Settings className="mr-2 h-4 w-4" />
                 Manage Connected Channels
               </Link>

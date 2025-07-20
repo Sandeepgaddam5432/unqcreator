@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { cn } from '@/lib/utils';
 import { 
   Home, 
@@ -22,7 +23,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMobileToggle }) => {
-  const location = useLocation();
+  const router = useRouter();
 
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
@@ -55,10 +56,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = router.pathname === item.path;
             
             return (
-              <Link key={item.path} to={item.path}>
+              <Link key={item.path} href={item.path} legacyBehavior>
                 <Button
                   variant={isActive ? "default" : "ghost"}
                   className={cn(
@@ -107,13 +108,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = router.pathname === item.path;
             
             return (
-              <Link key={item.path} to={item.path} onClick={() => onMobileToggle()}>
+              <Link key={item.path} href={item.path} legacyBehavior passHref>
                 <Button
                   variant={isActive ? "default" : "ghost"}
                   className="w-full justify-start h-12 px-4"
+                  onClick={onMobileToggle}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
                   <span className="ml-3">{item.label}</span>
