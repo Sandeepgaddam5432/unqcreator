@@ -48,27 +48,47 @@ export default NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.sub) {
-        try {
-          // Get complete user data from Google Sheet database
-          const userData = await getUserData(session.user.email!);
+      // Only proceed if we have a valid session and user
+      if (!session?.user || !token?.sub) {
+        console.warn('Session callback called with invalid session or token', { 
+          hasUser: !!session?.user, 
+          hasSub: !!token?.sub 
+        });
+        return session;
+      }
+
+      try {
+        // Always fetch fresh user data from Google Sheet database on each session request
+        const userData = await getUserData(session.user.email!);
+        
+        if (!userData) {
+          console.warn(`No user data found for email: ${session.user.email}`);
+          // Initialize with empty values instead of returning early
+          session.user.colab_url = '';
+          session.user.secondary_accounts = [];
+        } else {
+          // Add all user data to the session for global access
+          session.user.colab_url = userData.colab_url || '';
           
-          if (userData) {
-            // Add all user data to the session for global access
-            session.user.colab_url = userData.colab_url || '';
-            
-            // Add secondary accounts information if available
-            if (userData.secondary_accounts && userData.secondary_accounts.length > 0) {
-              session.user.secondary_accounts = userData.secondary_accounts.map(account => ({
-                email: account.email
-              }));
-            } else {
-              session.user.secondary_accounts = [];
-            }
+          // Add secondary accounts information if available
+          if (userData.secondary_accounts && userData.secondary_accounts.length > 0) {
+            session.user.secondary_accounts = userData.secondary_accounts.map(account => ({
+              email: account.email
+            }));
+          } else {
+            session.user.secondary_accounts = [];
           }
-        } catch (error) {
-          console.error('Error getting user data for session:', error);
+          
+          // Debug log to help trace session hydration issues
+          console.log(`Session hydrated for ${session.user.email}, colab_url: ${session.user.colab_url ? '[SET]' : '[EMPTY]'}`);
         }
+      } catch (error) {
+        // Detailed error logging to help debug issues
+        console.error(`Error hydrating session for ${session.user.email}:`, error);
+        
+        // Initialize with empty values on error to avoid undefined issues
+        session.user.colab_url = '';
+        session.user.secondary_accounts = [];
       }
       
       // Add access token to session
@@ -84,5 +104,6 @@ export default NextAuth({
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
-  }
+  },
+  debug: process.env.NODE_ENV === 'development',
 }); 

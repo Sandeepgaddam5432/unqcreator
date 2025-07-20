@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSession, signIn, signOut, SessionContextValue } from 'next-auth/react';
 import { User } from '../types';
 import { useToast } from '@/hooks/use-toast';
@@ -37,8 +37,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const isLoading = status === 'loading';
 
+  // Function to refresh the session data
+  const refreshSession = useCallback(async () => {
+    try {
+      await update();
+    } catch (error) {
+      console.error('Failed to refresh session:', error);
+      toast({
+        title: "Session Update Failed",
+        description: "Could not refresh your session data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [update, toast]);
+
   // Load user data from session
   useEffect(() => {
+    // Don't do anything while loading
+    if (status === 'loading') return;
+    
     if (session?.user) {
       const userData: User = {
         id: session.user.email || '',
@@ -51,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(userData);
       
       // If there's a colab_url in the session, select the main account by default
-      if (session.user.email) {
+      if (session.user.email && !selectedAccount) {
         setSelectedAccount(session.user.email);
       }
       
@@ -62,21 +79,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Fallback: fetch secondary accounts if not in session
         fetchSecondaryAccounts();
       }
-    } else {
+    } else if (status === 'unauthenticated') {
+      // Clear user data when unauthenticated
       setUser(null);
       setSelectedAccount(null);
       setSecondaryAccounts([]);
     }
-  }, [session]);
+  }, [session, status, selectedAccount]);
 
-  const fetchSecondaryAccounts = async () => {
-    if (!session?.user?.email) return;
+  const fetchSecondaryAccounts = useCallback(async () => {
+    if (!session?.user?.email || status !== 'authenticated') return;
     
     try {
       const response = await fetch('/api/auth/get-accounts');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch accounts: ${response.status}`);
+      }
+      
       const data = await response.json();
       if (data.success) {
         setSecondaryAccounts(data.accounts || []);
+      } else {
+        throw new Error(data.error || 'Unknown error fetching accounts');
       }
     } catch (error) {
       console.error('Error fetching secondary accounts:', error);
@@ -86,21 +110,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         variant: "destructive",
       });
     }
-  };
+  }, [session?.user?.email, status, toast]);
 
-  const login = () => {
+  const login = useCallback(() => {
     signIn('google', { callbackUrl: '/' });
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     signOut({ callbackUrl: '/' });
-  };
+  }, []);
 
-  const refreshSession = async () => {
-    await update();
-  };
-
-  const updateColabUrl = async (url: string): Promise<boolean> => {
+  const updateColabUrl = useCallback(async (url: string): Promise<boolean> => {
     try {
       const response = await fetch('/api/auth/update-colab-url', {
         method: 'POST',
@@ -111,7 +131,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (!response.ok) {
-        throw new Error('Failed to update Colab URL');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update Colab URL');
       }
       
       // Force refresh the session to get updated data
@@ -122,27 +143,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error updating Colab URL:', error);
       toast({
         title: "Error",
-        description: "Could not update your engine URL",
+        description: error instanceof Error ? error.message : "Could not update your engine URL",
         variant: "destructive",
       });
       return false;
     }
+  }, [update, toast]);
+
+  const contextValue = {
+    user,
+    login,
+    logout,
+    isAuthenticated: status === 'authenticated',
+    isLoading,
+    updateColabUrl,
+    selectedAccount,
+    setSelectedAccount,
+    secondaryAccounts,
+    refreshSession,
+    sessionData
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      login,
-      logout,
-      isAuthenticated: status === 'authenticated',
-      isLoading,
-      updateColabUrl,
-      selectedAccount,
-      setSelectedAccount,
-      secondaryAccounts,
-      refreshSession,
-      sessionData
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

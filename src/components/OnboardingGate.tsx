@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,66 +16,109 @@ const OnboardingGate: React.FC = () => {
   const { toast } = useToast();
   const { connectionStatus, connectionError, validateConnection } = useOnboarding();
   const { updateColabUrl } = useAuth();
-  const { update: updateSession } = useSession();
+  const { data: session, update: updateSession } = useSession();
   
   const [url, setUrl] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'validating_connection' | 'updating_url' | 'waiting_for_session' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [savedUrl, setSavedUrl] = useState<string | null>(null);
+  
+  // Effect to check if session has been updated with colab_url
+  useEffect(() => {
+    if (status === 'waiting_for_session' && savedUrl && session?.user?.colab_url === savedUrl) {
+      setStatus('success');
+      
+      // Show final success message
+      toast({
+        title: "Setup Complete!",
+        description: "Successfully connected to the UnQCreator Engine",
+        variant: "success",
+      });
+      
+      // Redirect to dashboard after a short delay to show success message
+      const redirectTimer = setTimeout(() => {
+        router.push('/dashboard');
+      }, 1500);
+      
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [session, status, savedUrl, toast, router]);
+  
+  // Periodic session update when waiting for changes to propagate
+  useEffect(() => {
+    let sessionCheckInterval: NodeJS.Timeout | null = null;
+    
+    if (status === 'waiting_for_session') {
+      // Update the session immediately once
+      updateSession();
+      
+      // Then set up periodic checks
+      sessionCheckInterval = setInterval(() => {
+        updateSession();
+      }, 1000); // Check every second
+      
+      // Set a timeout for giving up after waiting too long
+      const timeoutTimer = setTimeout(() => {
+        if (status === 'waiting_for_session') {
+          setStatus('error');
+          setErrorMessage('Session update timeout. Please try refreshing the page.');
+          toast({
+            title: "Session Update Timeout",
+            description: "Your connection was saved, but we couldn't verify the session update. Try refreshing the page.",
+            variant: "destructive",
+          });
+        }
+        
+        if (sessionCheckInterval) {
+          clearInterval(sessionCheckInterval);
+        }
+      }, 10000); // Give up after 10 seconds
+      
+      return () => {
+        if (sessionCheckInterval) clearInterval(sessionCheckInterval);
+        clearTimeout(timeoutTimer);
+      };
+    }
+    
+    return () => {
+      if (sessionCheckInterval) clearInterval(sessionCheckInterval);
+    };
+  }, [status, updateSession, toast]);
 
   const handleConnect = async () => {
     if (!url) return;
     
-    setStatus('submitting');
     try {
-      // First validate the connection
+      // Step 1: Validate the connection
+      setStatus('validating_connection');
       const isValid = await validateConnection(url);
       
-      if (isValid) {
-        // If connection is valid, update the user's Colab URL
-        const success = await updateColabUrl(url);
-        if (success) {
-          setStatus('success');
-          
-          // Show success message
-          toast({
-            title: "Connection successful!",
-            description: "You are now connected to UnQCreator Engine",
-            variant: "success",
-          });
-          
-          try {
-            // Update the session to reflect the new colab_url
-            await updateSession();
-            
-            // Redirect to dashboard after a short delay to show success message
-            setTimeout(() => {
-              router.push('/dashboard');
-            }, 1500);
-          } catch (error) {
-            console.error("Error updating session:", error);
-            setStatus('error');
-            setErrorMessage('Your connection was saved, but we had trouble updating your session. Please try refreshing the page.');
-          }
-        } else {
-          setStatus('error');
-          setErrorMessage('Failed to update Colab URL. Please try again.');
-          
-          toast({
-            title: "Connection failed",
-            description: "Could not save your engine URL. Please try again.",
-            variant: "destructive",
-          });
-        }
-      } else {
+      if (!isValid) {
         setStatus('error');
         setErrorMessage('Failed to connect to the engine. Please check the URL and try again.');
-        
-        toast({
-          title: "Connection failed",
-          description: "Could not connect to the engine. Please check the URL.",
-          variant: "destructive",
-        });
+        return;
       }
+      
+      // Step 2: Update the user's Colab URL in the database
+      setStatus('updating_url');
+      const success = await updateColabUrl(url);
+      
+      if (!success) {
+        setStatus('error');
+        setErrorMessage('Failed to update Colab URL. Please try again.');
+        return;
+      }
+      
+      // Step 3: Store the URL we just saved and wait for the session to update
+      setSavedUrl(url);
+      setStatus('waiting_for_session');
+      
+      toast({
+        title: "Connection saved!",
+        description: "Finalizing setup...",
+        variant: "default",
+      });
+      
     } catch (error) {
       console.error('Error during connection setup:', error);
       setStatus('error');
@@ -91,13 +134,22 @@ const OnboardingGate: React.FC = () => {
 
   // Helper to render different status messages
   const renderStatusMessage = () => {
-    if (status === 'submitting' || connectionStatus === 'validating') {
+    if (['submitting', 'validating_connection', 'updating_url', 'waiting_for_session'].includes(status) || 
+        connectionStatus === 'validating') {
       return (
         <Alert className="bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400">
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          <AlertTitle>Connecting...</AlertTitle>
+          <AlertTitle>
+            {status === 'validating_connection' ? 'Validating Connection...' : 
+             status === 'updating_url' ? 'Saving Connection...' : 
+             status === 'waiting_for_session' ? 'Finalizing Setup...' : 
+             'Connecting...'}
+          </AlertTitle>
           <AlertDescription>
-            Testing connection to the UnQCreator Engine. This may take a moment.
+            {status === 'validating_connection' ? 'Testing connection to the UnQCreator Engine...' : 
+             status === 'updating_url' ? 'Saving your connection settings...' : 
+             status === 'waiting_for_session' ? 'Completing your setup...' : 
+             'Setting up your connection...'}
           </AlertDescription>
         </Alert>
       );
@@ -129,6 +181,10 @@ const OnboardingGate: React.FC = () => {
 
     return null;
   };
+  
+  // Determine if the form should be disabled
+  const isFormDisabled = ['submitting', 'validating_connection', 'updating_url', 'waiting_for_session', 'success'].includes(status) || 
+                        connectionStatus === 'validating';
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-background to-muted/50 flex items-center justify-center p-4 z-50">
@@ -155,7 +211,7 @@ const OnboardingGate: React.FC = () => {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 className="flex-1"
-                disabled={status === 'submitting' || connectionStatus === 'validating'}
+                disabled={isFormDisabled}
               />
             </div>
             <p className="text-sm text-muted-foreground">
@@ -179,12 +235,22 @@ const OnboardingGate: React.FC = () => {
           <Button 
             className="w-full"
             onClick={handleConnect}
-            disabled={!url || status === 'submitting' || connectionStatus === 'validating' || status === 'success'}
+            disabled={!url || isFormDisabled}
           >
-            {status === 'submitting' || connectionStatus === 'validating' ? (
+            {status === 'validating_connection' ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Connecting...
+                Validating Connection...
+              </>
+            ) : status === 'updating_url' ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving Connection...
+              </>
+            ) : status === 'waiting_for_session' ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Finalizing Setup...
               </>
             ) : status === 'success' ? (
               <>

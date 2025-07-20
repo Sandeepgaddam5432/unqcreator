@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ApiService, ApiError, ApiErrorType, getApiService, resetApiService } from '@/services/ApiService';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useSession } from 'next-auth/react';
 
 // Connection states using a state machine approach
 export type ConnectionStatus = 
@@ -41,8 +42,9 @@ export const useOnboarding = () => {
 };
 
 export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { sessionData } = useAuth();
-  const { data: session } = sessionData;
+  // Use useSession directly instead of going through AuthContext to avoid circular dependencies
+  const { data: session } = useSession();
+  
   const [apiEndpoint, setApiEndpointState] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('unconfigured');
   const [connectionError, setConnectionError] = useState<ConnectionError | null>(null);
@@ -53,39 +55,50 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Load API endpoint from session data
   useEffect(() => {
-    if (session?.user?.colab_url) {
-      setApiEndpointState(session.user.colab_url);
+    // Only update if colab_url has changed or was previously not set
+    const colab_url = session?.user?.colab_url;
+    
+    if (colab_url && colab_url !== apiEndpoint) {
+      console.log(`Initializing API with colab_url: ${colab_url}`);
+      setApiEndpointState(colab_url);
       setIsConfigured(true);
-      setConnectionStatus('connected'); // Assume connected initially, will verify with heartbeat
       
       try {
         // Initialize the API service with the stored endpoint
-        const apiService = getApiService(session.user.colab_url);
+        const apiService = getApiService(colab_url);
         setApi(apiService);
         
-        // Perform an initial connection check
-        validateConnection(session.user.colab_url)
+        // Assume connection and set status, we'll verify with a heartbeat
+        setConnectionStatus('connected');
+        
+        // Perform an initial connection check in the background
+        validateConnection(colab_url)
           .catch((error) => {
-            // Silent fail on initial load - we'll show appropriate UI later
-            console.warn('Initial connection check failed', error);
+            console.warn('Initial connection check failed:', error);
           });
       } catch (error) {
         console.error('Failed to initialize API service:', error);
       }
-    } else {
+    } else if (!colab_url && apiEndpoint !== null) {
+      // User has no colab_url in their session, reset the state
       setApiEndpointState(null);
       setIsConfigured(false);
       setConnectionStatus('unconfigured');
+      setApi(null);
     }
-  }, [session?.user?.colab_url]);
+  }, [session?.user?.colab_url, apiEndpoint]);
 
   // Set up a periodic heartbeat check when connected
   useEffect(() => {
     if (connectionStatus === 'connected' && apiEndpoint) {
+      // Initial heartbeat
+      checkConnection().catch(error => {
+        console.warn('Heartbeat check failed:', error);
+      });
+      
       const heartbeatInterval = setInterval(() => {
         checkConnection().catch((error) => {
-          // Silent fail during heartbeat - UI will update based on connectionStatus
-          console.warn('Heartbeat check failed', error);
+          console.warn('Heartbeat check failed:', error);
         });
       }, 60000); // Check every minute
       
@@ -94,7 +107,12 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [connectionStatus, apiEndpoint]);
 
   // Validate a connection to the API endpoint
-  const validateConnection = async (url: string): Promise<boolean> => {
+  const validateConnection = useCallback(async (url: string): Promise<boolean> => {
+    // Don't do anything if we're already in the middle of validating
+    if (connectionStatus === 'validating') {
+      return false;
+    }
+    
     // Reset previous errors
     setConnectionError(null);
     
@@ -119,7 +137,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     
     try {
       // Create a temporary API service for validation if we don't have one yet
-      const apiService = api || new ApiService(url);
+      const apiService = api && apiEndpoint === url ? api : new ApiService(url);
       
       // Check system stats to validate connection
       await apiService.checkSystemStats();
@@ -127,11 +145,6 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Connection successful
       setConnectionStatus('connected');
       setLastHeartbeat(new Date());
-      toast({
-        title: "Connection Successful",
-        description: "Successfully connected to the UnQCreator Engine.",
-        variant: "success",
-      });
       return true;
     } catch (error) {
       console.error('Connection validation error:', error);
@@ -190,10 +203,10 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       return false;
     }
-  };
+  }, [api, apiEndpoint, connectionStatus, toast]);
 
   // Reset the configuration
-  const resetConfiguration = () => {
+  const resetConfiguration = useCallback(() => {
     setApiEndpointState(null);
     setIsConfigured(false);
     setConnectionStatus('unconfigured');
@@ -201,27 +214,35 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setLastHeartbeat(null);
     resetApiService();
     setApi(null);
-  };
+  }, []);
 
   // Check the current connection (for heartbeats)
-  const checkConnection = async (): Promise<boolean> => {
+  const checkConnection = useCallback(async (): Promise<boolean> => {
     if (!apiEndpoint) return false;
-    const isConnected = await validateConnection(apiEndpoint);
-    return isConnected;
+    
+    try {
+      const isConnected = await validateConnection(apiEndpoint);
+      return isConnected;
+    } catch (error) {
+      console.error('Error checking connection:', error);
+      return false;
+    }
+  }, [apiEndpoint, validateConnection]);
+
+  const contextValue = {
+    isConfigured,
+    connectionStatus,
+    apiEndpoint,
+    connectionError,
+    lastHeartbeat,
+    validateConnection,
+    resetConfiguration,
+    checkConnection,
+    api
   };
 
   return (
-    <OnboardingContext.Provider value={{
-      isConfigured,
-      connectionStatus,
-      apiEndpoint,
-      connectionError,
-      lastHeartbeat,
-      validateConnection,
-      resetConfiguration,
-      checkConnection,
-      api
-    }}>
+    <OnboardingContext.Provider value={contextValue}>
       {children}
     </OnboardingContext.Provider>
   );
