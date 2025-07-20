@@ -45,7 +45,7 @@ const LoginPage = () => {
               {isLoading ? (
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               ) : (
-                <LogIn className="mr-2 h-5 w-5" />
+              <LogIn className="mr-2 h-5 w-5" />
               )}
               Sign in with Google
             </Button>
