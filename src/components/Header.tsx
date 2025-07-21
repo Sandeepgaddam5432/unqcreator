@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAuth } from '../contexts/AuthContext';
+import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 
 interface HeaderProps {
@@ -21,7 +21,9 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onMobileMenuToggle }) => {
-  const { user, logout } = useAuth();
+  const { data: session } = useSession();
+  const user = session?.user;
+  const logout = () => signOut({ callbackUrl: '/' });
   const [hasNotifications] = useState(true);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 

@@ -1,5 +1,4 @@
 import React from 'react';
-import { withAuth } from '@/lib/withAuth';
 
 function ContentStudioPage() {
   return (
@@ -10,4 +9,4 @@ function ContentStudioPage() {
   );
 }
 
-export default withAuth(ContentStudioPage); 
+export default ContentStudioPage; 

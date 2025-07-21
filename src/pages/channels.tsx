@@ -1,5 +1,4 @@
 import React from 'react';
-import { withAuth } from '@/lib/withAuth';
 
 function ChannelsPage() {
   return (
@@ -10,4 +9,4 @@ function ChannelsPage() {
   );
 }
 
-export default withAuth(ChannelsPage); 
+export default ChannelsPage; 

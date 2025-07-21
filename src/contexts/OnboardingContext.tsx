@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ApiService, ApiError, ApiErrorType, getApiService, resetApiService } from '@/services/ApiService';
-import { useAuth } from './AuthContext';
-import { useToast } from '@/hooks/use-toast';
 import { useSession } from 'next-auth/react';
+import { useToast } from '@/hooks/use-toast';
 
 // Connection states using a state machine approach
 export type ConnectionStatus = 
@@ -42,7 +41,6 @@ export const useOnboarding = () => {
 };
 
 export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Use useSession directly instead of going through AuthContext to avoid circular dependencies
   const { data: session } = useSession();
   
   const [apiEndpoint, setApiEndpointState] = useState<string | null>(null);

@@ -1,5 +1,4 @@
 import React from 'react';
-import { withAuth } from '@/lib/withAuth';
 
 function SettingsPage() {
   return (
@@ -10,4 +9,4 @@ function SettingsPage() {
   );
 }
 
-export default withAuth(SettingsPage); 
+export default SettingsPage; 

@@ -2,14 +2,17 @@ import React from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, User, Plus } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSession } from 'next-auth/react';
 
 interface AccountSelectorProps {
   onAddAccount: () => void;
 }
 
 const AccountSelector: React.FC<AccountSelectorProps> = ({ onAddAccount }) => {
-  const { user, secondaryAccounts, selectedAccount, setSelectedAccount } = useAuth();
+  const { data: session } = useSession();
+  const user = session?.user;
+  const secondaryAccounts = user?.secondary_accounts || [];
+  const [selectedAccount, setSelectedAccount] = React.useState(user?.email || '');
 
   if (!user) return null;
   

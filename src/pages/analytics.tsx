@@ -1,5 +1,4 @@
 import React from 'react';
-import { withAuth } from '@/lib/withAuth';
 
 function AnalyticsPage() {
   return (
@@ -10,4 +9,4 @@ function AnalyticsPage() {
   );
 }
 
-export default withAuth(AnalyticsPage); 
+export default AnalyticsPage; 

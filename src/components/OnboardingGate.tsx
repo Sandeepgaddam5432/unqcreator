@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useOnboarding, ConnectionStatus } from '@/contexts/OnboardingContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { Sparkles, AlertCircle, CheckCircle2, Loader2, Globe, ArrowRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
@@ -15,10 +14,10 @@ const OnboardingGate: React.FC = () => {
   const router = useRouter();
   const { toast } = useToast();
   const { connectionStatus, connectionError, validateConnection } = useOnboarding();
-  const { updateColabUrl } = useAuth();
+  // Use updateSession from useSession for session update
   const { data: session, update: updateSession } = useSession();
   
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(''); // Always start with an empty string
   const [status, setStatus] = useState<'idle' | 'submitting' | 'validating_connection' | 'updating_url' | 'waiting_for_session' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [savedUrl, setSavedUrl] = useState<string | null>(null);
@@ -99,11 +98,14 @@ const OnboardingGate: React.FC = () => {
         return;
       }
       
-      // Step 2: Update the user's Colab URL in the database
+      // Step 2: Update the user's Colab URL in the database via API
       setStatus('updating_url');
-      const success = await updateColabUrl(url);
-      
-      if (!success) {
+      const response = await fetch('/api/auth/update-colab-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ colab_url: url }),
+      });
+      if (!response.ok) {
         setStatus('error');
         setErrorMessage('Failed to update Colab URL. Please try again.');
         return;
