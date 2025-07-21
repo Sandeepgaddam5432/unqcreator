@@ -1,7 +1,15 @@
 import React from 'react';
-import LoginPage from '@/components/LoginPage';
+import { useRouter } from 'next/router';
+import { useEffect } from 'react';
 
 export default function HomePage() {
-  // The PublicPageWrapper in _app.tsx will handle all the auth logic
-  return <LoginPage />;
+  const router = useRouter();
+  
+  // Redirect to dashboard - AuthGuard will handle the rest
+  useEffect(() => {
+    router.push('/dashboard');
+  }, [router]);
+  
+  // Return null since this is just a redirect
+  return null;
 } 

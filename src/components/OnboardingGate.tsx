@@ -18,6 +18,7 @@ const OnboardingGate: React.FC = () => {
   const { updateColabUrl } = useAuth();
   const { data: session, update: updateSession } = useSession();
   
+  // Initialize with a clean, empty string
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'validating_connection' | 'updating_url' | 'waiting_for_session' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -37,6 +38,7 @@ const OnboardingGate: React.FC = () => {
       
       // Redirect to dashboard after a short delay to show success message
       const redirectTimer = setTimeout(() => {
+        // Use explicit routing with next/router
         router.push('/dashboard');
       }, 1500);
       
